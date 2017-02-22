@@ -43,8 +43,8 @@ public class StateMachine<T> : MonoBehaviour {
 	public void ChangeState (T targetState) {
 		if (!targetState.Equals(currentState)) {
 			Call(currentState, "Exit");
-			Call(targetState, "Enter");
 			currentState = targetState;
+			Call(currentState, "Enter");
 		}
 	}
 
