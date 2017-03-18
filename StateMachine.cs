@@ -6,7 +6,7 @@ public class StateMachine<T> : MonoBehaviour {
 
 	private static string separator = "_";
 
-	private enum Function { Enter, Exit, Update, FixedUpdate };
+	private enum Function { Enter, Exit, Update, FixedUpdate, LateUpdate };
 	private MonoBehaviour component;
 	private MethodInfo[,] methodLookUp;
 	private T currentState;
@@ -49,6 +49,10 @@ public class StateMachine<T> : MonoBehaviour {
 
 	void FixedUpdate () {
 		Call(currentState, Function.FixedUpdate);
+	}
+
+	void LateUpdate () {
+		Call(currentState, Function.LateUpdate);
 	}
 
 	void Call (T state, Function function) {
