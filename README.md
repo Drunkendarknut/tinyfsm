@@ -31,7 +31,7 @@ All you need to do to change the state is call `ChangeState()`.
 ChangeState(State.State2);
 ```
 
-The state machine will call different Update and FixedUpdate methods based on the
+The state machine will call different Update, FixedUpdate and LateUpdate methods based on the
 current state, as well as Enter and Exit methods when changing the state.
 
 ```csharp
@@ -44,6 +44,10 @@ void State1_Update () {
 }
 
 void State1_FixedUpdate () {
+  // ...
+}
+
+void State1_LateUpdate () {
   // ...
 }
 
