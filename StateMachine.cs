@@ -1,41 +1,47 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
-public class StateMachine<T> : MonoBehaviour {
+public class StateMachine : MonoBehaviour {
 
-	private static string separator = "_";
-
-	private enum Function { Enter, Exit, Update, FixedUpdate, LateUpdate };
-	private MonoBehaviour component;
-	private MethodInfo[,] methodLookUp;
-	private T currentState;
-
-	public T CurrentState {
+	public string[] states;
+	public MonoBehaviour[] components;
+	public string separator = "_";
+	public string CurrentState {
 		get {return currentState;}
 	}
 
-	public void Initialize (MonoBehaviour comp, T initState) {
-		component = comp;
-		string[] stateNames = Enum.GetNames(typeof(T));
-		string[] functionNames = Enum.GetNames(typeof(Function));
-		methodLookUp = new MethodInfo[stateNames.Length, functionNames.Length];
+	private enum Function { Enter, Exit, Update, FixedUpdate, LateUpdate };
+	private string[] functionNames;
+	private Dictionary<string,int> stateIndex = new Dictionary<string,int> () {};
+	private MethodInfo[,,] methodLookUp;
+	private string currentState;
+
+	private void Awake () {
+		functionNames = Enum.GetNames(typeof(Function));
+		// Store indices for states
+		for (int i = 0; i < states.Length; i++)
+			stateIndex.Add(states[i], i);
 		// Reflect methods
-		for (int i = 0; i < stateNames.Length; i++) {
-			for (int j = 0; j < functionNames.Length; j++) {
-				string methodName = stateNames[i] + separator + functionNames[j];
-				methodLookUp[i,j] = component.GetType().GetMethod(
-					methodName,
-					BindingFlags.NonPublic | BindingFlags.Public |
-					BindingFlags.Instance | BindingFlags.DeclaredOnly
-				);
+		methodLookUp = new MethodInfo[components.Length, states.Length, functionNames.Length];
+		for (int j = 0; j < states.Length; j++) {
+			for (int k = 0; k < functionNames.Length; k++) {
+				string methodName = states[j] + separator + functionNames[k];
+				for (int i = 0; i < components.Length; i++) {
+					methodLookUp[i,j,k] = components[i].GetType().GetMethod(
+						methodName,
+						BindingFlags.NonPublic | BindingFlags.Public |
+						BindingFlags.Instance | BindingFlags.DeclaredOnly
+					);
+				}
 			}
 		}
-		currentState = initState;
+		currentState = states[0];
 		Call(currentState, Function.Enter);
 	}
 
-	public void ChangeState (T targetState) {
+	public void ChangeState (string targetState) {
 		if (!targetState.Equals(currentState)) {
 			Call(currentState, Function.Exit);
 			currentState = targetState;
@@ -43,20 +49,22 @@ public class StateMachine<T> : MonoBehaviour {
 		}
 	}
 
-	void Update () {
+	private void Update () {
 		Call(currentState, Function.Update);
 	}
 
-	void FixedUpdate () {
+	private void FixedUpdate () {
 		Call(currentState, Function.FixedUpdate);
 	}
 
-	void LateUpdate () {
+	private void LateUpdate () {
 		Call(currentState, Function.LateUpdate);
 	}
 
-	void Call (T state, Function function) {
-		MethodInfo method = methodLookUp[Convert.ToInt32(state), (int)function];
-		if (method != null) method.Invoke(component, null);
+	private void Call (string state, Function function) {
+		for (int i = 0; i < components.Length; i++) {
+			MethodInfo method = methodLookUp[i, stateIndex[state], (int)function];
+			if (method != null) method.Invoke(components[i], null);
+		}
 	}
 }
