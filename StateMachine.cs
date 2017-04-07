@@ -5,9 +5,10 @@ using UnityEngine;
 
 public class StateMachine : MonoBehaviour {
 
+	public string separator = "_";
+	public int initialStateIndex = 0;
 	public string[] states;
 	public MonoBehaviour[] components;
-	public string separator = "_";
 	public string CurrentState {
 		get {return currentState;}
 	}
@@ -37,7 +38,7 @@ public class StateMachine : MonoBehaviour {
 				}
 			}
 		}
-		currentState = states[0];
+		currentState = states[initialStateIndex];
 		Call(currentState, Function.Enter);
 	}
 
