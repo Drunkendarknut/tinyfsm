@@ -10,14 +10,14 @@ public class StateMachine : MonoBehaviour {
 	public string[] states;
 	public MonoBehaviour[] components;
 	public string CurrentState {
-		get {return currentState;}
+		get {return states[currentState];}
 	}
 
 	private enum Function { Enter, Exit, Update, FixedUpdate, LateUpdate };
 	private string[] functionNames;
 	private Dictionary<string,int> stateIndex = new Dictionary<string,int> () {};
 	private MethodInfo[,,] methodLookUp;
-	private string currentState;
+	private int currentState;
 
 	private void Awake () {
 		functionNames = Enum.GetNames(typeof(Function));
@@ -38,14 +38,14 @@ public class StateMachine : MonoBehaviour {
 				}
 			}
 		}
-		currentState = states[initialStateIndex];
+		currentState = initialStateIndex;
 		Call(currentState, Function.Enter);
 	}
 
 	public void ChangeState (string targetState) {
 		if (!targetState.Equals(currentState)) {
 			Call(currentState, Function.Exit);
-			currentState = targetState;
+			currentState = stateIndex[targetState];
 			Call(currentState, Function.Enter);
 		}
 	}
@@ -62,9 +62,9 @@ public class StateMachine : MonoBehaviour {
 		Call(currentState, Function.LateUpdate);
 	}
 
-	private void Call (string state, Function function) {
+	private void Call (int state, Function function) {
 		for (int i = 0; i < components.Length; i++) {
-			MethodInfo method = methodLookUp[i, stateIndex[state], (int)function];
+			MethodInfo method = methodLookUp[i, state, (int)function];
 			if (method != null) method.Invoke(components[i], null);
 		}
 	}
