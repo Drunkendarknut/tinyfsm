@@ -56,6 +56,7 @@ public class StateMachine<T> : MonoBehaviour {
 	}
 
 	void Call (T state, Function function) {
+		if (methodLookUp == null) return;
 		MethodInfo method = methodLookUp[Convert.ToInt32(state), (int)function];
 		if (method != null) method.Invoke(component, null);
 	}
