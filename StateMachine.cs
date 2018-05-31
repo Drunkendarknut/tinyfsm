@@ -1,63 +1,91 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.Profiling;
 
-public class StateMachine<T> : MonoBehaviour {
+public class StateMachine<T> : MonoBehaviour where T : IConvertible
+{
+    const string separator = "_";
 
-	private static string separator = "_";
+    const int ENTER        = 0;
+    const int EXIT         = 1;
+    const int UPDATE       = 2;
+    const int FIXED_UPDATE = 3;
+    const int LATE_UPDATE  = 4;
 
-	private enum Function { Enter, Exit, Update, FixedUpdate, LateUpdate };
-	private MonoBehaviour component;
-	private MethodInfo[,] methodLookUp;
-	private T currentState;
+    static readonly string[] callbackNames = new string[]
+    {
+        "Enter",
+        "Exit",
+        "Update",
+        "FixedUpdate",
+        "LateUpdate"
+    };
 
-	public T CurrentState {
-		get {return currentState;}
-	}
+    public delegate void CallbackDel();
 
-	public void Initialize (MonoBehaviour comp, T initState) {
-		component = comp;
-		string[] stateNames = Enum.GetNames(typeof(T));
-		string[] functionNames = Enum.GetNames(typeof(Function));
-		methodLookUp = new MethodInfo[stateNames.Length, functionNames.Length];
-		// Reflect methods
-		for (int i = 0; i < stateNames.Length; i++) {
-			for (int j = 0; j < functionNames.Length; j++) {
-				string methodName = stateNames[i] + separator + functionNames[j];
-				methodLookUp[i,j] = component.GetType().GetMethod(
-					methodName,
-					BindingFlags.NonPublic | BindingFlags.Public |
-					BindingFlags.Instance | BindingFlags.DeclaredOnly
-				);
-			}
-		}
-		currentState = initState;
-		Call(currentState, Function.Enter);
-	}
+    CallbackDel[,] callbacks;
+    int currentState;
 
-	public void ChangeState (T targetState) {
-		if (!targetState.Equals(currentState)) {
-			Call(currentState, Function.Exit);
-			currentState = targetState;
-			Call(currentState, Function.Enter);
-		}
-	}
+    public void Initialize(T initState)
+    {
+        var stateNames = Enum.GetNames(typeof(T));
 
-	void Update () {
-		Call(currentState, Function.Update);
-	}
+        callbacks = new CallbackDel[stateNames.Length, callbackNames.Length];
 
-	void FixedUpdate () {
-		Call(currentState, Function.FixedUpdate);
-	}
+        for (int i = 0; i < stateNames.Length; i++)
+        {
+            for (int j = 0; j < callbackNames.Length; j++)
+            {
+                var method = this.GetType().GetMethod(
+                    stateNames[i] + separator + callbackNames[j],
+                    BindingFlags.NonPublic | BindingFlags.Public |
+                    BindingFlags.Instance | BindingFlags.DeclaredOnly);
+                callbacks[i,j] = (method == null)? null : (CallbackDel)Delegate.CreateDelegate(
+                    typeof(CallbackDel), this, method);
+            }
+        }
 
-	void LateUpdate () {
-		Call(currentState, Function.LateUpdate);
-	}
+        currentState = initState.ToInt32(null);
+        var func = callbacks[currentState, ENTER];
+        if (func != null) func();
+    }
 
-	void Call (T state, Function function) {
-		if (methodLookUp == null) return;
-		MethodInfo method = methodLookUp[Convert.ToInt32(state), (int)function];
-		if (method != null) method.Invoke(component, null);
-	}
+    public T GetState()
+    {
+        return (T)Enum.ToObject(typeof(T), currentState);
+    }
+
+    public void SetState(T targetState)
+    {
+        var targetStateInt = targetState.ToInt32(null);
+        if (targetStateInt == currentState) return;
+
+        var exit = callbacks[currentState, EXIT];
+        if (exit != null) exit();
+
+        currentState = targetStateInt;
+
+        var enter = callbacks[currentState, ENTER];
+        if (enter != null) enter();
+    }
+
+    protected virtual void Update()
+    {
+        var func = callbacks[currentState, UPDATE];
+        if (func != null) func();
+    }
+
+    protected virtual void FixedUpdate()
+    {
+        var func = callbacks[currentState, FIXED_UPDATE];
+        if (func != null) func();
+    }
+
+    protected virtual void LateUpdate()
+    {
+        var func = callbacks[currentState, LATE_UPDATE];
+        if (func != null) func();
+    }
 }
